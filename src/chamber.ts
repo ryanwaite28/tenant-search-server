@@ -32,6 +32,14 @@ export enum USER_ACCOUNT_TYPES {
   HOME_OWNER = 'HOME_OWNER',
 }
 
+export enum HOME_TYPES {
+  ANY = 'ANY',
+  CONDO = 'CONDO',
+  APARTMENT = 'APARTMENT',
+  TOWN_HOME = 'TOWN_HOME',
+  HOUSE = 'HOUSE',
+}
+
 export enum SEARCH_STATUS {
   NOT_LOOKING = 'NOT_LOOKING',
   PASSIVE = 'PASSIVE',

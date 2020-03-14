@@ -7,6 +7,7 @@ import { Op, Model } from 'sequelize';
 import {
   Users,
   Tokens,
+  HomeListings,
 } from '../../../models';
 import { UploadedFile } from 'express-fileupload';
 import { store_image } from '../../../cloudinary-manager';
@@ -192,7 +193,7 @@ export async function update_profile_icon(
       return response.status(400).json({ error: true, message: 'Invalid file type: jpg, jpeg or png required...' });
     }
 
-    const results = await store_image(icon_file, response.locals.you.icon_id);
+    const results = await store_image(icon_file, (<IRequest> request).session.you.icon_id);
     if (!results.result) {
       return response.status(500).json({ error: true, message: 'Could not upload file...' });
     }
@@ -211,4 +212,137 @@ export async function update_profile_icon(
     console.log('error:', e);
     return response.status(500).json({ error: true, message: 'Could not upload file...' });
   }
+}
+
+export async function update_home_listing(
+  request: Request,
+  response: Response,
+) {
+  const user_id = parseInt(request.params.id, 10);
+  const home_listing_id = parseInt(request.params.home_listing_id, 10);
+  const you = (<IRequest> request).session.you;
+  if (user_id !== you.id) {
+    return response.status(401).json({
+      error: true,
+      message: `You are not permitted to complete this action.`
+    });
+  }
+
+  const {
+    title,
+    description,
+    amenities,
+    links,
+    deposit,
+    rent,
+    lease_type,
+    lease_duration,
+  } = request.body;
+
+  if (!title || title.length > 250) {
+    return response.status(400).json({
+      error: true,
+      message: `Title is required: cannot exceed 250 characters`
+    });
+  }
+  if (description && description.length > 500) {
+    return response.status(400).json({
+      error: true,
+      message: `Description cannot exceed 500 characters`
+    });
+  }
+  if (amenities && amenities.length > 500) {
+    return response.status(400).json({
+      error: true,
+      message: `Amenities cannot exceed 500 characters`
+    });
+  }
+  if (links && links.length > 1000) {
+    return response.status(400).json({
+      error: true,
+      message: `Links cannot exceed 1000 characters`
+    });
+  }
+  if (!deposit) {
+    return response.status(400).json({
+      error: true,
+      message: `Deposit is required.`
+    });
+  }
+  if (!rent) {
+    return response.status(400).json({
+      error: true,
+      message: `Rent is required.`
+    });
+  }
+  if (!lease_type) {
+    return response.status(400).json({
+      error: true,
+      message: `Lease type is required.`
+    });
+  }
+  if (!lease_duration) {
+    return response.status(400).json({
+      error: true,
+      message: `Lease duration is required.`
+    });
+  }
+
+  const homeModel = await HomeListings.findOne({ where: { id: home_listing_id } });
+  if (!homeModel) {
+    return response.status(404).json({
+      error: true,
+      message: `Could not find listing from id: ${home_listing_id}`
+    });
+  }
+  if (homeModel.owner_id !== you.id) {
+    return response.status(400).json({
+      error: true,
+      message: `You do not own this home listing data.`
+    });
+  }
+
+  let icon_id = '';
+  let icon_link = '';
+  const picture_file: UploadedFile | undefined = request.files && (<UploadedFile> request.files.picture_file);
+  console.log({ picture_file });
+  if (picture_file) {
+    const type = picture_file.mimetype.split('/')[1];
+    const isInvalidType = !allowed_images.includes(type);
+    if (isInvalidType) {
+      return response.status(400).json({ error: true, message: 'Invalid file type: jpg, jpeg or png required...' });
+    }
+    const results = await store_image(picture_file, homeModel.icon_id);
+    if (!results.result) {
+      return response.status(500).json({ error: true, message: 'Could not upload file...' });
+    }
+    icon_id = results.result.public_id;
+    icon_link = results.result.secure_url;
+  }
+
+  const updatesObj: any = {
+    title,
+    description,
+    amenities,
+    links,
+    deposit,
+    rent,
+    lease_type,
+    lease_duration,
+  };
+  if (icon_id && icon_link) {
+    updatesObj.icon_id = icon_id;
+    updatesObj.icon_link = icon_link;
+  }
+  /**  method 1: update via table */
+  // const whereClause = { where: { id: home_listing_id, owner_id: you.id } };
+  // const updates = await HomeListings.update(updatesObj, whereClause);
+  /**  method 1: update via model */
+  Object.assign(homeModel, updatesObj);
+  await homeModel.save();
+
+  return response.status(200).json({
+    updatesObj: homeModel.toJSON(),
+    message: `Home listing updated successfully.`
+  });
 }

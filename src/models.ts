@@ -11,6 +11,7 @@ import {
 
 interface IMyModel extends Sequelize.Model {
   readonly id: number;
+  [key: string]: any;
 }
 
 type MyModelStatic = typeof Sequelize.Model & {
@@ -71,6 +72,7 @@ export const UserLocationPreferences = <MyModelStatic> sequelize.define('user_lo
   state:               { type: Sequelize.STRING(500), allowNull: true, defaultValue: '' },
   zipcode:             { type: Sequelize.STRING(500), allowNull: true, defaultValue: '' },
   country:             { type: Sequelize.STRING(500), allowNull: true, defaultValue: '' },
+  home_type:           { type: Sequelize.STRING(500), allowNull: true, defaultValue: '' },
   date_created:        { type: Sequelize.DATE, defaultValue: Sequelize.NOW },
   uuid:                { type: Sequelize.STRING, unique: true, defaultValue: Sequelize.UUIDV1 }
 }, { freezeTableName: true, underscored: true, indexes: [{ unique: true, fields: ['uuid'] }] });
@@ -203,11 +205,17 @@ export const HomeListings = <MyModelStatic> sequelize.define('home_listings', {
   title:               { type: Sequelize.STRING(500), allowNull: true, defaultValue: '' },
   description:         { type: Sequelize.TEXT, allowNull: true, defaultValue: '' },
   amenities:           { type: Sequelize.TEXT, allowNull: true, defaultValue: '' },
+  home_type:           { type: Sequelize.STRING(500), allowNull: true, defaultValue: '' },
   links:               { type: Sequelize.TEXT, allowNull: true, defaultValue: '' },
   deposit:             { type: Sequelize.INTEGER, allowNull: false, defaultValue: 0 },
   rent:                { type: Sequelize.INTEGER, allowNull: false, defaultValue: 0 },
+  // min_credit_score:    { type: Sequelize.INTEGER, allowNull: false, defaultValue: 0 },
   lease_type:          { type: Sequelize.STRING(500), allowNull: true, defaultValue: '' },
   lease_duration:      { type: Sequelize.INTEGER, allowNull: false },
+  link_text:           { type: Sequelize.STRING(250), allowNull: false, defaultValue: '' },
+  link_href:           { type: Sequelize.STRING(250), allowNull: false, defaultValue: '' },
+  icon_link:           { type: Sequelize.STRING(500), allowNull: true, defaultValue: '' },
+  icon_id:             { type: Sequelize.STRING(500), allowNull: true, defaultValue: '' },
   street:              { type: Sequelize.STRING(500), allowNull: true, defaultValue: '' },
   street_cont:         { type: Sequelize.STRING(500), allowNull: true, defaultValue: '' },
   city:                { type: Sequelize.STRING(500), allowNull: true, defaultValue: '' },
@@ -228,6 +236,7 @@ export const HomeListingPictures = <MyModelStatic> sequelize.define('home_listin
 export const HomeListingRequests = <MyModelStatic> sequelize.define('home_listing_requests', {
   home_listing_id:     { type: Sequelize.INTEGER, allowNull: false, references: { model: HomeListings, key: 'id' } },
   tenant_id:           { type: Sequelize.INTEGER, allowNull: false, references: { model: Users, key: 'id' } },
+  message:             { type: Sequelize.STRING(500), allowNull: true, defaultValue: '' },
   pre_approved:        { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: false },
   accepted:            { type: Sequelize.BOOLEAN, allowNull: true },
   uuid:                { type: Sequelize.STRING, defaultValue: Sequelize.UUIDV1 }

@@ -6,15 +6,19 @@ import {
   generateToken,
   uniqueValue,
   capitalize,
-  SEARCH_STATUS
+  SEARCH_STATUS,
+  HOME_TYPES,
+  allowed_images
 } from '../../../chamber';
 import * as bcrypt from 'bcrypt-nodejs';
 import { Request, Response } from 'express';
 import { IRequest } from '../../../interfaces/express-request.interface';
 import { IResponse } from '../../../interfaces/express-response.interface';
 import {
-  Users, Tokens
+  Users, Tokens, UserLocationPreferences, HomeListings
 } from '../../../models';
+import { UploadedFile } from 'express-fileupload';
+import { store_image } from '../../../cloudinary-manager';
 
 export async function sign_up(
   request: Request,
@@ -139,5 +143,202 @@ export function sign_out(
     online: false,
     successful: true,
     message: 'Signed out successfully!'
+  });
+}
+
+export async function create_location_preference(
+  request: Request,
+  response: Response,
+) {
+  const user_id = parseInt(request.params.id, 10);
+  const you = (<IRequest> request).session.you;
+  if (user_id !== you.id) {
+    return response.status(401).json({
+      error: true,
+      message: `You are not permitted to complete this action.`
+    });
+  }
+  const { state, city, home_type } = request.body;
+  if (!state) {
+    return response.status(400).json({
+      error: true,
+      message: `State is required.`
+    });
+  }
+  if (!city) {
+    return response.status(400).json({
+      error: true,
+      message: `City is required.`
+    });
+  }
+
+  const location_preference = await UserLocationPreferences.create({
+    user_id,
+    state,
+    city,
+    home_type: (home_type || HOME_TYPES.ANY),
+  });
+
+  return response.status(200).json({
+    location_preference,
+    message: `Location preference created successfully.`
+  });
+}
+
+export async function create_home_listing(
+  request: Request,
+  response: Response,
+) {
+  const user_id = parseInt(request.params.id, 10);
+  const you = (<IRequest> request).session.you;
+  if (user_id !== you.id) {
+    return response.status(401).json({
+      error: true,
+      message: `You are not permitted to complete this action.`
+    });
+  }
+
+  const {
+    title,
+    description,
+    amenities,
+    home_type,
+    links,
+    deposit,
+    rent,
+    lease_type,
+    lease_duration,
+    street,
+    street_cont,
+    city,
+    state,
+    zipcode,
+  } = request.body;
+
+  if (!title || title.length > 250) {
+    return response.status(400).json({
+      error: true,
+      message: `Title is required: cannot exceed 250 characters`
+    });
+  }
+  if (description && description.length > 500) {
+    return response.status(400).json({
+      error: true,
+      message: `Description cannot exceed 500 characters`
+    });
+  }
+  if (amenities && amenities.length > 500) {
+    return response.status(400).json({
+      error: true,
+      message: `Amenities cannot exceed 500 characters`
+    });
+  }
+  if (links && links.length > 1000) {
+    return response.status(400).json({
+      error: true,
+      message: `Links cannot exceed 1000 characters`
+    });
+  }
+  if (!home_type) {
+    return response.status(400).json({
+      error: true,
+      message: `Home type is required.`
+    });
+  }
+  if (!deposit) {
+    return response.status(400).json({
+      error: true,
+      message: `Deposit is required.`
+    });
+  }
+  if (!rent) {
+    return response.status(400).json({
+      error: true,
+      message: `Rent is required.`
+    });
+  }
+  if (!lease_type) {
+    return response.status(400).json({
+      error: true,
+      message: `Lease type is required.`
+    });
+  }
+  if (!lease_duration) {
+    return response.status(400).json({
+      error: true,
+      message: `Lease duration is required.`
+    });
+  }
+  if (!street || street.length > 250) {
+    return response.status(400).json({
+      error: true,
+      message: `State is required: cannot exceed 250 characters.`
+    });
+  }
+  if (!street_cont || street_cont.length > 250) {
+    return response.status(400).json({
+      error: true,
+      message: `State additional info is required: cannot exceed 250 characters.`
+    });
+  }
+  if (links && links.length > 1000) {
+    return response.status(400).json({
+      error: true,
+      message: `Links cannot exceed 1000 characters`
+    });
+  }
+  if (!state) {
+    return response.status(400).json({
+      error: true,
+      message: `State is required.`
+    });
+  }
+  if (!city) {
+    return response.status(400).json({
+      error: true,
+      message: `City is required.`
+    });
+  }
+
+  let icon_id = '';
+  let icon_link = '';
+  const picture_file: UploadedFile | undefined = request.files && (<UploadedFile> request.files.picture_file);
+  if (picture_file) {
+    const type = picture_file.mimetype.split('/')[1];
+    const isInvalidType = !allowed_images.includes(type);
+    if (isInvalidType) {
+      return response.status(400).json({ error: true, message: 'Invalid file type: jpg, jpeg or png required...' });
+    }
+    const results = await store_image(picture_file);
+    if (!results.result) {
+      return response.status(500).json({ error: true, message: 'Could not upload file...' });
+    }
+    icon_id = results.result.public_id;
+    icon_link = results.result.secure_url;
+  }
+
+  const home_listing = await HomeListings.create({
+    owner_id: you.id,
+    title,
+    icon_id,
+    icon_link,
+    description,
+    amenities,
+    home_type,
+    links,
+    deposit,
+    rent,
+    lease_type,
+    lease_duration,
+    street,
+    street_cont,
+    city,
+    state,
+    zipcode,
+  });
+
+  return response.status(200).json({
+    home_listing,
+    message: `Home listing created successfully.`
   });
 }

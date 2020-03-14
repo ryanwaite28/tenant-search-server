@@ -61,7 +61,6 @@ app.use('/main', cors(corsOptions), MainController);
 /* --- Static file declaration --- */
 
 const binPath = path.join(__dirname, '../_bin');
-console.log(`--- bin path ---`, binPath);
 app.use(express.static(binPath));
 
 
