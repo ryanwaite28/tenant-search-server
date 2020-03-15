@@ -2,8 +2,8 @@
 node_modules/
 build/
 .env
-*.png
-*.jpg
-*.jpeg
-*.gif
+./*.png
+./*.jpg
+./*.jpeg
+./*.gif
 database.sqlite
