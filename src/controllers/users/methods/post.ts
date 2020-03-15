@@ -130,7 +130,7 @@ export async function sign_up(
   // const email_html = templateEngine.SignedUp_EMAIL(request.session.you);
   // sendgrid_manager.send_email(null, user.email, email_subject, email_html);
 
-  const responseData = { online: true, user, message: 'Signed Up!', token: new_token };
+  const responseData = { online: true, user, message: 'Signed Up!', token: new_token, session_id: (<any> request).session.id };
   return response.status(200).json(responseData);
 }
 

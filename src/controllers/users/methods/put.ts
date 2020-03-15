@@ -85,6 +85,7 @@ export async function sign_in(
       user,
       online: true,
       token: new_token,
+      session_id: (<IRequest> request).session.id,
       message: 'Signed In!'
     };
   }
@@ -342,7 +343,7 @@ export async function update_home_listing(
   await homeModel.save();
 
   return response.status(200).json({
-    updatesObj: homeModel.toJSON(),
+    home_listing: homeModel.toJSON(),
     message: `Home listing updated successfully.`
   });
 }

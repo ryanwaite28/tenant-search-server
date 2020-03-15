@@ -60,8 +60,8 @@ export async function user_location_preferences(
     limit: 5,
     order: [['id', 'DESC']]
   });
-  const user = await Users.findOne({ where: { id: user_id }, attributes: { exclude: ['password'] } });
-  return response.status(200).json({ user, location_preferences });
+  // const user = await Users.findOne({ where: { id: user_id }, attributes: { exclude: ['password'] } });
+  return response.status(200).json({ location_preferences });
 }
 
 export async function user_home_listings(
@@ -80,6 +80,6 @@ export async function user_home_listings(
     limit: 5,
     order: [['id', 'DESC']]
   });
-  const user = await Users.findOne({ where: { id: owner_id }, attributes: { exclude: ['password'] } });
-  return response.status(200).json({ user, home_listings });
+  // const user = await Users.findOne({ where: { id: owner_id }, attributes: { exclude: ['password'] } });
+  return response.status(200).json({ home_listings });
 }

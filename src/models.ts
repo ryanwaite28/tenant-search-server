@@ -209,7 +209,6 @@ export const HomeListings = <MyModelStatic> sequelize.define('home_listings', {
   links:               { type: Sequelize.TEXT, allowNull: true, defaultValue: '' },
   deposit:             { type: Sequelize.INTEGER, allowNull: false, defaultValue: 0 },
   rent:                { type: Sequelize.INTEGER, allowNull: false, defaultValue: 0 },
-  // min_credit_score:    { type: Sequelize.INTEGER, allowNull: false, defaultValue: 0 },
   lease_type:          { type: Sequelize.STRING(500), allowNull: true, defaultValue: '' },
   lease_duration:      { type: Sequelize.INTEGER, allowNull: false },
   link_text:           { type: Sequelize.STRING(250), allowNull: false, defaultValue: '' },
@@ -262,10 +261,13 @@ Users.hasMany(HomeListings, { as: 'home_listings', foreignKey: 'owner_id', sourc
 HomeListings.belongsTo(Users, { as: 'home_owner', foreignKey: 'owner_id', targetKey: 'id' });
 
 Users.hasMany(HomeListingRequests, { as: 'home_listing_requests', foreignKey: 'tenant_id', sourceKey: 'id' });
-HomeListingRequests.belongsTo(Users, { as: 'tenant_request', foreignKey: 'tenant_id', targetKey: 'id' });
+HomeListingRequests.belongsTo(Users, { as: 'tenant', foreignKey: 'tenant_id', targetKey: 'id' });
 
 HomeListings.hasMany(HomeListingPictures, { as: 'pictures', foreignKey: 'home_listing_id', sourceKey: 'id' });
 HomeListingPictures.belongsTo(HomeListings, { as: 'home_listing', foreignKey: 'home_listing_id', targetKey: 'id' });
+
+HomeListings.hasMany(HomeListingRequests, { as: 'requests', foreignKey: 'home_listing_id', sourceKey: 'id' });
+HomeListingRequests.belongsTo(HomeListings, { as: 'home_listing', foreignKey: 'home_listing_id', targetKey: 'id' });
 
 /** Init Database */
 

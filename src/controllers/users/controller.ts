@@ -17,7 +17,6 @@ UsersController.get('/:id/home-listings/:home_listing_id', GET.user_home_listing
 UsersController.get('/:id/location-preferences', GET.user_location_preferences);
 UsersController.get('/:id/location-preferences/:location_preference_id', GET.user_location_preferences);
 
-
 /** POST routes */
 
 UsersController.post('/', POST.sign_up);
