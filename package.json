@@ -8,8 +8,7 @@
     "tsc": "tsc",
     "tscWatch": "tsc -w",
     "startdev": "npm run tsc && nodemon build/app.js",
-    "build": "webpack --config webpack.config.js",
-    "start": "nodemon build/app.js"
+    "start": "npm run startdev"
   },
   "author": "Ryan M. Waite",
   "license": "ISC",
