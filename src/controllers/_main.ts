@@ -12,7 +12,5 @@ export const MainController: Router = Router();
 /** Mount Routers */
 
 MainController.options('*', cors(corsOptions));
-MainController.use('/', cors(corsOptions));
-
-MainController.use(`/users`, UsersController);
-MainController.use(`/home-listings`, HomeListingsController);
+MainController.use(`/users`, cors(corsOptions), UsersController);
+MainController.use(`/home-listings`, cors(corsOptions), HomeListingsController);
