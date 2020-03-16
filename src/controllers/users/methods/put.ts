@@ -1,4 +1,4 @@
-import { uniqueValue, generateToken, validateNumber, validateSearchStatus, validateEmail, allowed_images } from '../../../Chamber';
+import { uniqueValue, generateToken, validateNumber, validateSearchStatus, validateEmail, allowed_images, USER_ACCOUNT_TYPES, EVENT_TYPES, NOTIFICATION_TYPE, NOTIFICATION_TARGET_TYPE } from '../../../Chamber';
 import * as bcrypt from 'bcrypt-nodejs';
 import { Request, Response } from 'express';
 import { IRequest } from '../../../interfaces/express-request.interface';
@@ -8,6 +8,8 @@ import {
   Users,
   Tokens,
   HomeListings,
+  HomeListingRequests,
+  Notifications,
 } from '../../../models';
 import { UploadedFile } from 'express-fileupload';
 import { store_image } from '../../../cloudinary-manager';
@@ -109,8 +111,10 @@ export async function update_profile_settings(
   request: Request,
   response: Response,
 ) {
+  const you = (<IRequest> request).session.you;
   const bio = request.body.bio || '';
   const email = request.body.email;
+  const phone = request.body.phone;
   const search_status = request.body.search_status;
   const credit_score = request.body.credit_score;
   const gross_income = request.body.gross_income;
@@ -120,10 +124,16 @@ export async function update_profile_settings(
   if (bio.length > 250) {
     return response.status(400).json({ error: true, message: 'Bio cannot be longer than 250 characters' });
   }
+  if (phone && !(/[0-9]{10,12}/).test(phone)) {
+    return response.status(400).json({
+      error: true,
+      message: `Phone number must be a 10 digit number; "${phone}" is invalid/not accepted.`
+    });
+  }
   if (!email || !validateEmail(email)) {
     return response.status(400).json({ error: true, message: 'Email address field is required' });
   }
-  if (email !== (<IRequest> request).session.you.email) {
+  if (email !== you.email) {
     const check_email = await Users.findOne({ where: { email } });
     if (check_email) {
       return response.status(401).json({ error: true, message: 'Email already in use' });
@@ -135,34 +145,37 @@ export async function update_profile_settings(
       message: 'Search Status must be either "NOT_LOOKING", "PASSIVE" or "ACTIVE".'
     });
   }
-  if (!validateNumber(credit_score) || (credit_score < 300 || credit_score > 850)) {
-    return response.status(400).json({
-      error: true,
-      message: 'Credit score must be a number between 300 and 850.'
-    });
-  }
-  if (!validateNumber(gross_income)) {
-    return response.status(400).json({
-      error: true,
-      message: 'Gross must be a positive number.'
-    });
-  }
-  if (!validateNumber(net_income)) {
-    return response.status(400).json({
-      error: true,
-      message: 'Net income must be a positive number.'
-    });
-  }
-  if (!validateNumber(income_sources_count)) {
-    return response.status(400).json({
-      error: true,
-      message: 'Number of income sources must be a positive number.'
-    });
+  if (you.account_type === USER_ACCOUNT_TYPES.TENANT) {
+    if (!validateNumber(credit_score) || (credit_score < 300 || credit_score > 850)) {
+      return response.status(400).json({
+        error: true,
+        message: 'Credit score must be a number between 300 and 850.'
+      });
+    }
+    if (!validateNumber(gross_income)) {
+      return response.status(400).json({
+        error: true,
+        message: 'Gross must be a positive number.'
+      });
+    }
+    if (!validateNumber(net_income)) {
+      return response.status(400).json({
+        error: true,
+        message: 'Net income must be a positive number.'
+      });
+    }
+    if (!validateNumber(income_sources_count)) {
+      return response.status(400).json({
+        error: true,
+        message: 'Number of income sources must be a positive number.'
+      });
+    }
   }
 
   const updatesObj = {
     bio,
     email,
+    phone,
     search_status,
     credit_score,
     gross_income,
@@ -170,11 +183,11 @@ export async function update_profile_settings(
     income_sources_count,
   };
 
-  const updates = await Users.update(updatesObj, { where: { id: (<IRequest> request).session.you.id } });
-  Object.assign((<IRequest> request).session.you, updatesObj);
-  const user = { ...(<IRequest> request).session.you };
+  const updates = await Users.update(updatesObj, { where: { id: you.id } });
+  Object.assign(you, updatesObj);
+  const user = { ...you };
   delete user.password;
-  const responseData = { user, message: 'Settings updated successfully!' };
+  const responseData = { user, updates, message: 'Settings updated successfully!' };
   return response.status(200).json(responseData);
 }
 
@@ -220,14 +233,14 @@ export async function update_home_listing(
   response: Response,
 ) {
   const user_id = parseInt(request.params.id, 10);
-  const home_listing_id = parseInt(request.params.home_listing_id, 10);
   const you = (<IRequest> request).session.you;
   if (user_id !== you.id) {
-    return response.status(401).json({
+    return response.status(403).json({
       error: true,
       message: `You are not permitted to complete this action.`
     });
   }
+  const home_listing_id = parseInt(request.params.home_listing_id, 10);
 
   const {
     title,
@@ -342,8 +355,111 @@ export async function update_home_listing(
   Object.assign(homeModel, updatesObj);
   await homeModel.save();
 
+  const home_listing = homeModel.toJSON();
+
+  (<IRequest> request).io.emit(EVENT_TYPES.HOME_LISTING_UPDATED, {
+    for_id: null,
+    home_listing,
+  });
+
   return response.status(200).json({
-    home_listing: homeModel.toJSON(),
+    home_listing,
     message: `Home listing updated successfully.`
+  });
+}
+
+export async function accept_request(
+  request: Request,
+  response: Response,
+) {
+  const user_id = parseInt(request.params.id, 10);
+  const you = (<IRequest> request).session.you;
+  if (user_id !== you.id) {
+    return response.status(403).json({
+      error: true,
+      message: `You are not permitted to complete this action.`
+    });
+  }
+
+  const request_id = parseInt(request.params.request_id, 10);
+  const home_listing_request = await HomeListingRequests.findOne(
+    { where: { id: request_id, tenant_id: user_id } }
+  );
+  if (!home_listing_request) {
+    return response.status(404).json({
+      error: true,
+      message: `Could not find home listing request by id: ${request_id}.`
+    });
+  }
+  home_listing_request.accepted = true;
+  const updates = await home_listing_request.save();
+
+  const newNotification = await Notifications.create({
+    from_id: you.id,
+    to_id: home_listing_request.home_owner_id,
+    action: NOTIFICATION_TYPE.HOME_LISTING_REQUEST_ACCEPTED,
+    target_type: NOTIFICATION_TARGET_TYPE.HOME_LISTING,
+    target_id: home_listing_request.home_listing_id,
+  });
+  (<IRequest> request).io.emit(EVENT_TYPES.HOME_LISTING_REQUEST_ACCEPTED, {
+    for_id: home_listing_request.home_owner_id,
+    home_request_id: request_id,
+    newNotification,
+    home_listing_id: home_listing_request.home_listing_id,
+    home_listing_request,
+  });
+
+  return response.status(200).json({
+    home_listing_request,
+    accepted: true,
+    message: `Request accepted.`
+  });
+}
+
+export async function decline_request(
+  request: Request,
+  response: Response,
+) {
+  const user_id = parseInt(request.params.id, 10);
+  const you = (<IRequest> request).session.you;
+  if (user_id !== you.id) {
+    return response.status(403).json({
+      error: true,
+      message: `You are not permitted to complete this action.`
+    });
+  }
+
+  const request_id = parseInt(request.params.request_id, 10);
+  const home_listing_request = await HomeListingRequests.findOne(
+    { where: { id: request_id, tenant_id: user_id } }
+  );
+  if (!home_listing_request) {
+    return response.status(404).json({
+      error: true,
+      message: `Could not find home listing request by id: ${request_id}.`
+    });
+  }
+  home_listing_request.accepted = false;
+  const updates = await home_listing_request.save();
+
+  const newNotification = await Notifications.create({
+    from_id: you.id,
+    to_id: home_listing_request.home_owner_id,
+    action: NOTIFICATION_TYPE.HOME_LISTING_REQUEST_DECLINED,
+    target_type: NOTIFICATION_TARGET_TYPE.HOME_LISTING,
+    target_id: home_listing_request.home_listing_id,
+  });
+  (<IRequest> request).io.emit(EVENT_TYPES.HOME_LISTING_REQUEST_DECLINED, {
+    for_id: home_listing_request.home_owner_id,
+    home_request_id: request_id,
+    newNotification,
+    home_listing_id: home_listing_request.home_listing_id,
+    home_listing_request,
+  });
+
+  return response.status(200).json({
+    home_listing_request,
+    accepted: false,
+    message: `Request declined.`
   });
 }

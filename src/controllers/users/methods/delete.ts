@@ -4,6 +4,7 @@ import { IResponse } from '../../../interfaces/express-response.interface';
 import {
   UserLocationPreferences, HomeListings
 } from '../../../models';
+import { EVENT_TYPES } from '../../../chamber';
 
 export async function delete_location_preference(
   request: Request,
@@ -57,6 +58,12 @@ export async function delete_home_listing(
 
   const whereClause = { where: { id: home_listing_id, owner_id: you.id } };
   const delete_status = await HomeListings.destroy(whereClause);
+
+  (<IRequest> request).io.emit(EVENT_TYPES.HOME_LISTING_DELETED, {
+    for_id: null,
+    home_listing_id,
+  });
+
   return response.status(200).json({
     delete_status,
     message: `Home listing deleted successfully.`

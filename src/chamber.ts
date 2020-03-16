@@ -47,15 +47,30 @@ export enum SEARCH_STATUS {
 }
 
 export enum NOTIFICATION_TYPE {
-  NEW_HOME_LISTING = 'NEW_HOME_LISTING'
+  NEW_HOME_LISTING = 'NEW_HOME_LISTING',
+  HOME_LISTING_REQUEST_ACCEPTED = 'HOME_LISTING_REQUEST_ACCEPTED',
+  HOME_LISTING_REQUEST_DECLINED = 'HOME_LISTING_REQUEST_DECLINED',
+  HOME_LISTING_REQUEST_SENT = 'HOME_LISTING_REQUEST_SENT',
+  HOME_LISTING_REQUEST_CANCELED = 'HOME_LISTING_REQUEST_CANCELED',
 }
 
 export enum NOTIFICATION_TARGET_TYPE {
   USER = 'USER',
+  HOME_LISTING = 'HOME_LISTING',
+  HOME_LISTING_REQUEST = 'HOME_LISTING_REQUEST',
 }
 
 export enum SUBSCRIPTION_TYPE {
   USER_LOCATION_PREFERENCES_UPDATED = 'USER_LOCATION_PREFERENCES_UPDATED'
+}
+
+export enum EVENT_TYPES {
+  HOME_LISTING_UPDATED = 'HOME_LISTING_UPDATED',
+  HOME_LISTING_DELETED = 'HOME_LISTING_DELETED',
+  HOME_LISTING_REQUEST_ACCEPTED = 'HOME_LISTING_REQUEST_ACCEPTED',
+  HOME_LISTING_REQUEST_DECLINED = 'HOME_LISTING_REQUEST_DECLINED',
+  HOME_LISTING_REQUEST_SENT = 'HOME_LISTING_REQUEST_SENT',
+  HOME_LISTING_REQUEST_CANCELED = 'HOME_LISTING_REQUEST_CANCELED',
 }
 
 /* --- */
@@ -314,13 +329,29 @@ export function SessionRequired(request: Request, response: Response, next: Next
   })();
 }
 
+export function UserAuthorized(request: Request, response: Response, next: NextFunction) {
+  const user_id = parseInt(request.params.id, 10);
+  const you = (<IRequest> request).session.you;
+  if (user_id !== you.id) {
+    return response.status(403).json({
+      error: true,
+      message: `You are not permitted to complete this action.`
+    });
+  }
+
+  return next();
+}
+
 export const whitelist_domains = [
   // dev origins
+  'http://localhost:8080',
   'http://localhost:7600',
   'http://localhost:9500',
 
   // prod origins
   'https://ryanwaite28.github.io',
+  'http://rmw-tenant-search-client.herokuapp.com',
+  'https://rmw-tenant-search-client.herokuapp.com',
 ];
 
 export const corsOptions: CorsOptions = {

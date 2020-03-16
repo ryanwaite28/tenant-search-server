@@ -70,10 +70,10 @@ export async function sign_up(
       message: 'First name must be letters only and at least 2 characters long.'
     });
   }
-  if (middle_initial && middle_initial.length > 1) {
+  if (middle_initial && !(/[a-zA-Z]{1}/i).test(middle_initial)) {
     return response.status(400).json({
       error: true,
-      message: 'Middle initial can only be 1 character long.'
+      message: 'Middle initial can only be 1 character long; must be a letter.'
     });
   }
   if (!validateAccountType(account_type)) {
@@ -272,13 +272,13 @@ export async function create_home_listing(
   if (!street || street.length > 250) {
     return response.status(400).json({
       error: true,
-      message: `State is required: cannot exceed 250 characters.`
+      message: `Street is required: cannot exceed 250 characters.`
     });
   }
-  if (!street_cont || street_cont.length > 250) {
+  if (street_cont && street_cont.length > 250) {
     return response.status(400).json({
       error: true,
-      message: `State additional info is required: cannot exceed 250 characters.`
+      message: `Street additional info cannot exceed 250 characters.`
     });
   }
   if (links && links.length > 1000) {

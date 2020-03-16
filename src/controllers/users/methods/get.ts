@@ -6,6 +6,8 @@ import {
   Tokens,
   UserLocationPreferences,
   HomeListings,
+  HomeListingRequests,
+  Notifications
 } from '../../../models';
 import { Request, Response } from 'express';
 import { IRequest } from '../../../interfaces/express-request.interface';
@@ -82,4 +84,69 @@ export async function user_home_listings(
   });
   // const user = await Users.findOne({ where: { id: owner_id }, attributes: { exclude: ['password'] } });
   return response.status(200).json({ home_listings });
+}
+
+export async function requests_by_home_owner_id(
+  request: Request,
+  response: Response,
+) {
+  const id = parseInt(request.params.id, 10);
+  const request_id = parseInt(request.params.request_id, 10);
+  const home_listing_requests = await HomeListingRequests.findAll({
+    where: (!request_id ? { home_owner_id: id } : { home_owner_id: id, id: { [Op.lt]: request_id } }),
+    include: [{
+      model: HomeListings,
+      as: 'home_listing',
+    }, {
+      model: Users,
+      as: 'tenant',
+      attributes: { exclude: ['password'] }
+    }],
+    limit: 5,
+    order: [['id', 'DESC']]
+  });
+  return response.status(200).json({ home_listing_requests });
+}
+
+export async function requests_by_tenant_id(
+  request: Request,
+  response: Response,
+) {
+  const id = parseInt(request.params.id, 10);
+  const request_id = parseInt(request.params.request_id, 10);
+  const home_listing_requests = await HomeListingRequests.findAll({
+    where: (!request_id ? { tenant_id: id } : { tenant_id: id, id: { [Op.lt]: request_id } }),
+    include: [{
+      model: HomeListings,
+      as: 'home_listing',
+      include: [{
+        model: Users,
+        as: 'home_owner',
+        attributes: { exclude: ['password'] }
+      }]
+    }],
+    limit: 5,
+    order: [['id', 'DESC']]
+  });
+  return response.status(200).json({ home_listing_requests });
+}
+
+export async function user_notifications(
+  request: Request,
+  response: Response,
+) {
+  const you_id = parseInt(request.params.id, 10);
+  const notification_id = parseInt(request.params.notification_id, 10);
+
+  const notifications = await Notifications.findAll({
+    where: (!notification_id ? { to_id: you_id } : { to_id: you_id, id: { [Op.lt]: notification_id } }),
+    include: [{
+      model: Users,
+      as: 'from',
+      attributes: { exclude: ['password'] }
+    }],
+    limit: 5,
+    order: [['id', 'DESC']]
+  });
+  return response.status(200).json({ notifications });
 }

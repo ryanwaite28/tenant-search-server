@@ -41,26 +41,21 @@ export async function possible_tenants_by_state(
     });
   }
 
-  const location_preference_id = parseInt(request.params.location_preference_id, 10);
-  const whereClause: any = !location_preference_id
-    ? {
-        state: homeListingModel.state,
-      }
-    : {
-        state: homeListingModel.state,
-        id: { [Op.lt]: location_preference_id }
-      };
-  const location_preferences = await UserLocationPreferences.findAll({
-    where: whereClause,
+  const user_id = parseInt(request.params.user_id, 10);
+  const possible_tenants = await Users.findAll({
+    where: (!user_id ? {  } : { id: { [Op.lt]: user_id } }),
+    attributes: { exclude: ['password'] },
     include: [{
-      model: Users,
-      as: 'user',
-      attributes: { exclude: ['password'] }
+      model: UserLocationPreferences,
+      as: 'location_preferences',
+      where: {
+        state: homeListingModel.state
+      }
     }],
     limit: 5,
     order: [['id', 'DESC']]
   });
-  return response.status(200).json({ location_preferences });
+  return response.status(200).json({ possible_tenants });
 }
 
 export async function possible_tenants_by_state_and_city(
@@ -79,28 +74,22 @@ export async function possible_tenants_by_state_and_city(
     });
   }
 
-  const location_preference_id = parseInt(request.params.location_preference_id, 10);
-  const whereClause: any = !location_preference_id
-    ? {
-        state: homeListingModel.state,
-        city: homeListingModel.city
-      }
-    : {
+  const user_id = parseInt(request.params.user_id, 10);
+  const possible_tenants = await Users.findAll({
+    where: (!user_id ? {  } : { id: { [Op.lt]: user_id } }),
+    attributes: { exclude: ['password'] },
+    include: [{
+      model: UserLocationPreferences,
+      as: 'location_preferences',
+      where: {
         state: homeListingModel.state,
         city: homeListingModel.city,
-        id: { [Op.lt]: location_preference_id }
-      };
-  const location_preferences = await UserLocationPreferences.findAll({
-    where: whereClause,
-    include: [{
-      model: Users,
-      as: 'user',
-      attributes: { exclude: ['password'] }
+      }
     }],
     limit: 5,
     order: [['id', 'DESC']]
   });
-  return response.status(200).json({ location_preferences });
+  return response.status(200).json({ possible_tenants });
 }
 
 export async function requests_by_home_listing_id(
@@ -121,7 +110,8 @@ export async function requests_by_home_listing_id(
 
   const request_id = parseInt(request.params.request_id, 10);
   const home_listing_requests = await HomeListingRequests.findAll({
-    where: (!request_id ? { home_listing_id } : { home_listing_id, id: { [Op.lt]: request_id } }),
+    where: { home_listing_id },
+    // where: (!request_id ? { home_listing_id } : { home_listing_id, id: { [Op.lt]: request_id } }),
     include: [{
       model: Users,
       as: 'tenant',

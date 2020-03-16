@@ -51,7 +51,7 @@ export const Users = <MyModelStatic> sequelize.define('users', {
   gross_income:            { type: Sequelize.INTEGER, allowNull: false, defaultValue: 0 },
   net_income:              { type: Sequelize.INTEGER, allowNull: false, defaultValue: 0 },
   income_sources_count:    { type: Sequelize.INTEGER, allowNull: false, defaultValue: 0 },
-  paypal:                  { type: Sequelize.STRING, allowNull: true, defaultValue: '' },
+  phone:                   { type: Sequelize.STRING, allowNull: true, defaultValue: '' },
   account_type:            { type: Sequelize.STRING(250), allowNull: false },
   search_status:           { type: Sequelize.STRING(250), allowNull: false },
   bio:                     { type: Sequelize.STRING(250), allowNull: false, defaultValue: '' },
@@ -234,6 +234,7 @@ export const HomeListingPictures = <MyModelStatic> sequelize.define('home_listin
 
 export const HomeListingRequests = <MyModelStatic> sequelize.define('home_listing_requests', {
   home_listing_id:     { type: Sequelize.INTEGER, allowNull: false, references: { model: HomeListings, key: 'id' } },
+  home_owner_id:       { type: Sequelize.INTEGER, allowNull: false, references: { model: Users, key: 'id' } },
   tenant_id:           { type: Sequelize.INTEGER, allowNull: false, references: { model: Users, key: 'id' } },
   message:             { type: Sequelize.STRING(500), allowNull: true, defaultValue: '' },
   pre_approved:        { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: false },
@@ -249,8 +250,10 @@ UserLocationPreferences.belongsTo(Users, { as: 'user', foreignKey: 'user_id', ta
 Users.hasMany(UserFields, { as: 'fields', foreignKey: 'user_id', sourceKey: 'id' });
 UserFields.belongsTo(Users, { as: 'user', foreignKey: 'user_id', targetKey: 'id' });
 
-Users.hasMany(Notifications, { as: 'notifications', foreignKey: 'to_id', sourceKey: 'id' });
-Notifications.belongsTo(Users, { as: 'user', foreignKey: 'to_id', targetKey: 'id' });
+Users.hasMany(Notifications, { as: 'to_notifications', foreignKey: 'to_id', sourceKey: 'id' });
+Notifications.belongsTo(Users, { as: 'to', foreignKey: 'to_id', targetKey: 'id' });
+Users.hasMany(Notifications, { as: 'from_notifications', foreignKey: 'from_id', sourceKey: 'id' });
+Notifications.belongsTo(Users, { as: 'from', foreignKey: 'from_id', targetKey: 'id' });
 
 Users.hasMany(Messages, { as: 'sent', foreignKey: 'sender_id', sourceKey: 'id' });
 Messages.belongsTo(Users, { as: 'sender', foreignKey: 'sender_id', targetKey: 'id' });
@@ -262,11 +265,13 @@ HomeListings.belongsTo(Users, { as: 'home_owner', foreignKey: 'owner_id', target
 
 Users.hasMany(HomeListingRequests, { as: 'home_listing_requests', foreignKey: 'tenant_id', sourceKey: 'id' });
 HomeListingRequests.belongsTo(Users, { as: 'tenant', foreignKey: 'tenant_id', targetKey: 'id' });
+Users.hasMany(HomeListingRequests, { as: 'tenant_requests', foreignKey: 'home_owner_id', sourceKey: 'id' });
+HomeListingRequests.belongsTo(Users, { as: 'home_owner', foreignKey: 'home_owner_id', targetKey: 'id' });
 
 HomeListings.hasMany(HomeListingPictures, { as: 'pictures', foreignKey: 'home_listing_id', sourceKey: 'id' });
 HomeListingPictures.belongsTo(HomeListings, { as: 'home_listing', foreignKey: 'home_listing_id', targetKey: 'id' });
 
-HomeListings.hasMany(HomeListingRequests, { as: 'requests', foreignKey: 'home_listing_id', sourceKey: 'id' });
+HomeListings.hasMany(HomeListingRequests, { as: 'tenant_requests', foreignKey: 'home_listing_id', sourceKey: 'id' });
 HomeListingRequests.belongsTo(HomeListings, { as: 'home_listing', foreignKey: 'home_listing_id', targetKey: 'id' });
 
 /** Init Database */

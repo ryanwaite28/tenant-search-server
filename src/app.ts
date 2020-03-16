@@ -53,8 +53,9 @@ app.use((request: express.Request, response: express.Response, next: express.Nex
   next();
 });
 
-app.options('*', cors(corsOptions));
-app.use('/main', cors(corsOptions), MainController);
+// app.options('*', cors(corsOptions));
+// app.use('/main', cors(corsOptions), MainController);
+app.use('/main', MainController);
 
 
 
