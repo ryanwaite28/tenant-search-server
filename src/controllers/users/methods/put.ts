@@ -1,4 +1,15 @@
-import { uniqueValue, generateToken, validateNumber, validateSearchStatus, validateEmail, allowed_images, USER_ACCOUNT_TYPES, EVENT_TYPES, NOTIFICATION_TYPE, NOTIFICATION_TARGET_TYPE } from '../../../Chamber';
+import {
+  uniqueValue,
+  generateToken, 
+  validateNumber, 
+  validateSearchStatus, 
+  validateEmail, 
+  allowed_images, 
+  USER_ACCOUNT_TYPES, 
+  EVENT_TYPES, 
+  NOTIFICATION_TYPE, 
+  NOTIFICATION_TARGET_TYPE
+} from '../../../chamber';
 import * as bcrypt from 'bcrypt-nodejs';
 import { Request, Response } from 'express';
 import { IRequest } from '../../../interfaces/express-request.interface';
