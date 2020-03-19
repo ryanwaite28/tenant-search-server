@@ -405,13 +405,13 @@ export const corsOptions: CorsOptions = {
     // });
 
     if (!origin) {
-      callback(new Error('Not allowed by CORS'));
+      callback(new Error(`Origin "${origin}" Not allowed by CORS`));
       return;
     }
     if (originIsAllowed) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      callback(new Error(`Origin "${origin}" Not allowed by CORS`));
     }
   },
   credentials: true,
