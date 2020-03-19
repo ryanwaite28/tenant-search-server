@@ -1,0 +1,3 @@
+// const origin = request.get('origin')!;
+    // console.log({ origin });
+    await ResetPasswordRequests.destroy({ where: { user_id: 1 } });

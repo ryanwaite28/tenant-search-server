@@ -7,7 +7,7 @@ export function send_email(from: string, to: string, subject: string, html: stri
       return reject({ error: msgError });
     }
 
-    const senderEmail = from || process.env.SENDGRID_USER_EMAIL;
+    const senderEmail = from || process.env.SENDGRID_USERNAME;
     if (!senderEmail) {
       const msgError = `A 'from' email is missing.`;
       console.log({ error: msgError });
@@ -21,12 +21,12 @@ export function send_email(from: string, to: string, subject: string, html: stri
     sgMail.send(email)
     .then((result: any) => {
       console.log('email sent ---');
-      console.log(result);
-      return resolve({ error: false, result });
+      // console.log(result);
+      return resolve({ error: false });
     })
     .catch((error: any) => {
       console.log('email failed ---');
-      console.log(error);
+      // console.log(error);
       return reject({ error });
     });
   });

@@ -37,6 +37,7 @@ UsersController.post('/:id/location-preferences', SessionRequired, UserAuthorize
 UsersController.put('/', PUT.sign_in);
 UsersController.put('/:id/settings', SessionRequired, UserAuthorized, PUT.update_profile_settings);
 UsersController.put('/:id/icon', SessionRequired, UserAuthorized, PUT.update_profile_icon);
+UsersController.put('/:id/password', SessionRequired, UserAuthorized, PUT.update_profile_password);
 UsersController.put('/:id/home-listings/:home_listing_id', SessionRequired, UserAuthorized, PUT.update_home_listing);
 UsersController.put('/:id/home-listings-requests/:request_id/accept', SessionRequired, UserAuthorized, PUT.accept_request);
 UsersController.put('/:id/home-listings-requests/:request_id/decline', SessionRequired, UserAuthorized, PUT.decline_request);

@@ -1,0 +1,36 @@
+<div>
+  <h3>Tenant Request!</h3>
+
+  <p>{{ data.name }} wants you to be a tenant! Check out the home below:</p>
+
+  <h4>{{ data.home_listing.title }}</h4>
+  <img src="{{ data.home_listing.icon_link }}" alt="{{ data.home_listing.title }}">
+  <p><strong>Description</strong>:<br/>{{ data.home_listing.description }}</p>
+  <p><strong>Amenities</strong>:<br/>{{ data.home_listing.amenities }}</p>
+  <p><strong>Home Type</strong>: {{ data.home_listing.home_type }}</p>
+  
+  <p><strong>Deposit</strong>: ${{ data.home_listing.deposit }}</p>
+  <p><strong>Rent</strong>: ${{ data.home_listing.rent }}</p>
+  <p><strong>Lease Type</strong>: {{ data.home_listing.lease_type }}</p>
+  <p><strong>Lease Duration</strong>: {{ data.home_listing.lease_duration }}</p>
+
+  <p><strong>Street Address</strong>: {{ data.home_listing.street }} {{ data.home_listing.street_cont }}</p>
+  <p><strong>City</strong>: {{ data.home_listing.city }}</p>
+  <p><strong>State</strong>: {{ data.home_listing.state }}</p>
+  <p><strong>Zipcode</strong>: {{ data.home_listing.zipcode }}</p>
+
+  {% if data.links|length %}
+    <p><strong>Links</strong>:</p>
+    <ul>
+    {% for link in data.links %}
+      <li><a href="{{ link }}">{{ link }}</a></li>
+    {% endfor %}
+    </ul>
+  {% endif %}
+
+  <br/>
+  <br/>
+  <p>This is the home owner's info:</p>
+  <p>Email: {{ data.home_owner_email }}</p>
+  <p>Phone: {{ data.home_owner_phone }}</p>
+</div>

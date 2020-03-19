@@ -2,19 +2,20 @@ import * as Sequelize from 'sequelize';
 import {
   greatUniqueValue,
   LEASE_TYPES,
-  USER_ACCOUNT_TYPES
+  USER_ACCOUNT_TYPES,
+  generateResetPasswordCode
 } from './chamber';
 
 /**
  * @see: https://sequelize.org/master/manual/typescript
  */
 
-interface IMyModel extends Sequelize.Model {
+export interface IMyModel extends Sequelize.Model {
   readonly id: number;
   [key: string]: any;
 }
 
-type MyModelStatic = typeof Sequelize.Model & {
+export type MyModelStatic = typeof Sequelize.Model & {
   new (values?: object, options?: Sequelize.BuildOptions): IMyModel;
 };
 
@@ -51,6 +52,8 @@ export const Users = <MyModelStatic> sequelize.define('users', {
   gross_income:            { type: Sequelize.INTEGER, allowNull: false, defaultValue: 0 },
   net_income:              { type: Sequelize.INTEGER, allowNull: false, defaultValue: 0 },
   income_sources_count:    { type: Sequelize.INTEGER, allowNull: false, defaultValue: 0 },
+  preferred_rent:          { type: Sequelize.INTEGER, allowNull: true, defaultValue: 0 },
+  max_rent:                { type: Sequelize.INTEGER, allowNull: true, defaultValue: 0 },
   phone:                   { type: Sequelize.STRING, allowNull: true, defaultValue: '' },
   account_type:            { type: Sequelize.STRING(250), allowNull: false },
   search_status:           { type: Sequelize.STRING(250), allowNull: false },
@@ -97,10 +100,11 @@ export const Tokens = <MyModelStatic> sequelize.define('tokens', {
 }, { freezeTableName: true, underscored: true });
 
 export const ResetPasswordRequests = <MyModelStatic> sequelize.define('reset_password_requests', {
-  user_email:          { type: Sequelize.INTEGER, allowNull: false },
+  user_id:             { type: Sequelize.INTEGER, allowNull: false, references: { model: Users, key: 'id' } },
   date_created:        { type: Sequelize.DATE, defaultValue: Sequelize.NOW },
+  completed:           { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: false },
   uuid:                { type: Sequelize.STRING, unique: true, defaultValue: Sequelize.UUIDV1 },
-  unique_value:        { type: Sequelize.STRING, unique: true, defaultValue: greatUniqueValue }
+  unique_value:        { type: Sequelize.STRING, unique: true, defaultValue: Sequelize.UUIDV1 }
 }, { freezeTableName: true, underscored: true });
 
 export const Blockings = <MyModelStatic> sequelize.define('blockings', {

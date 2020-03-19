@@ -11,19 +11,19 @@ import * as PUT from './methods/put';
 import * as DELETE from './methods/delete';
 
 
-export const PasswordResetRequestsController: Router = Router();
+export const MiscController: Router = Router();
 
 /** GET routes */
 
-
+MiscController.get('/verify-account/:verify_code', GET.verify_account);
 
 /** POST routes */
 
-PasswordResetRequestsController.post('/submit_reset_password_request', POST.submit_reset_password_request);
+
 
 /** PUT routes */
 
-PasswordResetRequestsController.put('/submit_password_reset_code', PUT.submit_password_reset_code);
+
 
 /** DELETE routes */
 

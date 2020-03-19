@@ -8,7 +8,10 @@ import {
   USER_ACCOUNT_TYPES, 
   EVENT_TYPES, 
   NOTIFICATION_TYPE, 
-  NOTIFICATION_TARGET_TYPE
+  NOTIFICATION_TARGET_TYPE,
+  validatePassword,
+  getUserFullName,
+  convertHomeListingLinksToList
 } from '../../../chamber';
 import * as bcrypt from 'bcrypt-nodejs';
 import { Request, Response } from 'express';
@@ -24,6 +27,8 @@ import {
 } from '../../../models';
 import { UploadedFile } from 'express-fileupload';
 import { store_image } from '../../../cloudinary-manager';
+import { send_email } from '../../../sendgrid-manager';
+import { TenantRequest_Declined, TenantRequest_Accepted } from '../../../template-engine';
 
 export async function sign_in(
   request: Request,
@@ -130,7 +135,10 @@ export async function update_profile_settings(
   const credit_score = request.body.credit_score;
   const gross_income = request.body.gross_income;
   const net_income = request.body.net_income;
-  const income_sources_count = request.body.income_sources_count;
+  const income_sources_count = request.body.income_sources_count && parseInt(request.body.income_sources_count, 10);
+  const preferred_rent = request.body.preferred_rent && parseInt(request.body.preferred_rent, 10);
+  const max_rent = request.body.max_rent && parseInt(request.body.max_rent, 10);
+
 
   if (bio.length > 250) {
     return response.status(400).json({ error: true, message: 'Bio cannot be longer than 250 characters' });
@@ -181,6 +189,18 @@ export async function update_profile_settings(
         message: 'Number of income sources must be a positive number.'
       });
     }
+    if (preferred_rent && !validateNumber(preferred_rent)) {
+      return response.status(400).json({
+        error: true,
+        message: 'Preferred rent must be a positive number.'
+      });
+    }
+    if (max_rent && !validateNumber(max_rent)) {
+      return response.status(400).json({
+        error: true,
+        message: 'Max rent must be a positive number.'
+      });
+    }
   }
 
   const updatesObj = {
@@ -192,13 +212,15 @@ export async function update_profile_settings(
     gross_income,
     net_income,
     income_sources_count,
+    preferred_rent,
+    max_rent,
   };
 
   const updates = await Users.update(updatesObj, { where: { id: you.id } });
   Object.assign(you, updatesObj);
   const user = { ...you };
   delete user.password;
-  const responseData = { user, updates, message: 'Settings updated successfully!' };
+  const responseData = { user, updates, message: 'Settings updated successfully.' };
   return response.status(200).json(responseData);
 }
 
@@ -231,11 +253,66 @@ export async function update_profile_icon(
     Object.assign((<IRequest> request).session.you, updatesObj);
     const user = { ...(<IRequest> request).session.you };
     delete user.password;
-    const responseData = { user, message: 'Icon updated successfully!' };
+    const responseData = { user, message: 'Icon updated successfully.' };
     return response.status(200).json(responseData);
   } catch (e) {
     console.log('error:', e);
     return response.status(500).json({ error: true, message: 'Could not upload file...' });
+  }
+}
+
+export async function update_profile_password(
+  request: Request,
+  response: Response,
+) {
+  try {
+    const oldpassword = request.body.oldpassword;
+    const password = request.body.password;
+    const confirmPassword = request.body.confirmPassword;
+
+    if (!oldpassword) {
+      return response.status(400).json({
+        error: true,
+        message: `Old password field is required.`
+      });
+    }
+    if (!password) {
+      return response.status(400).json({
+        error: true,
+        message: `Password field is required.`
+      });
+    }
+    if (!confirmPassword) {
+      return response.status(400).json({
+        error: true,
+        message: `Confirm Password field is required.`
+      });
+    }
+    if (!validatePassword(password)) {
+      return response.status(400).json({
+        error: true,
+        message: 'Password must be: at least 7 characters, upper and/or lower case alphanumeric'
+      });
+    }
+    if (password !== confirmPassword) {
+      return response.status(400).json({ error: true, message: 'Passwords must match' });
+    }
+    const checkOldPassword = bcrypt.compareSync(oldpassword, (<IRequest> request).session.you.password);
+    if (checkOldPassword === false) {
+      return response.status(401).json({ error: true, message: 'Old password is incorrect.' });
+    }
+
+    const hash = bcrypt.hashSync(password);
+    const updatesObj = { password: hash };
+    const whereClause = { where: { id: (<IRequest> request).session.you.id } };
+    const updates = await Users.update(updatesObj, whereClause);
+
+    Object.assign((<IRequest> request).session.you, updatesObj);
+    const responseData = { updates, message: 'Password updated successfully.' };
+    return response.status(200).json(responseData);
+  } catch (e) {
+    console.log('error:', e);
+    return response.status(500).json({ e, error: true, message: 'Could not update password...' });
   }
 }
 
@@ -369,6 +446,7 @@ export async function update_home_listing(
   const home_listing = homeModel.toJSON();
 
   (<IRequest> request).io.emit(EVENT_TYPES.HOME_LISTING_UPDATED, {
+    event: EVENT_TYPES.HOME_LISTING_UPDATED,
     for_id: null,
     home_listing,
   });
@@ -405,20 +483,46 @@ export async function accept_request(
   home_listing_request.accepted = true;
   const updates = await home_listing_request.save();
 
-  const newNotification = await Notifications.create({
-    from_id: you.id,
-    to_id: home_listing_request.home_owner_id,
-    action: NOTIFICATION_TYPE.HOME_LISTING_REQUEST_ACCEPTED,
-    target_type: NOTIFICATION_TARGET_TYPE.HOME_LISTING,
-    target_id: home_listing_request.home_listing_id,
-  });
-  (<IRequest> request).io.emit(EVENT_TYPES.HOME_LISTING_REQUEST_ACCEPTED, {
-    for_id: home_listing_request.home_owner_id,
-    home_request_id: request_id,
-    newNotification,
-    home_listing_id: home_listing_request.home_listing_id,
-    home_listing_request,
-  });
+  /** Notify home owner that request was accepted */
+  Users.findOne({ where: { id: home_listing_request.home_owner_id } })
+    .then(async (homeOwner: any) => {
+      try {
+        const subject = 'Tenant Search - Tenant Request Accepted.';
+        const home_listing = await HomeListings.findOne({ where: { id: home_listing_request.home_listing_id } });
+        const home_listing_data: any = home_listing!.get({ plain: true });
+        const html = TenantRequest_Accepted({
+          name: getUserFullName(you),
+          home_listing: home_listing_data
+        });
+        send_email('', homeOwner.dataValues.email, subject, html)
+          .then(email_result => {
+            console.log({ password_request: email_result });
+          });
+
+        const newNotification = await Notifications.create({
+          from_id: you.id,
+          to_id: home_listing_request.home_owner_id,
+          action: NOTIFICATION_TYPE.HOME_LISTING_REQUEST_ACCEPTED,
+          target_type: NOTIFICATION_TARGET_TYPE.HOME_LISTING,
+          target_id: home_listing_request.home_listing_id,
+        });
+        (<IRequest> request).io.emit(`${home_listing_request.home_owner_id}:${EVENT_TYPES.HOME_LISTING_REQUEST_ACCEPTED}`, {
+          event: EVENT_TYPES.HOME_LISTING_REQUEST_ACCEPTED,
+          for_id: home_listing_request.home_owner_id,
+          home_listing: home_listing_data,
+          links: convertHomeListingLinksToList(home_listing_data!.links),
+          home_request_id: request_id,
+          notification: {
+            ...newNotification.toJSON(),
+            from: you
+          },
+          home_listing_id: home_listing_request.home_listing_id,
+          home_listing_request,
+        });
+      } catch(e) {
+        console.log({ e, message: `could not sent email...` });
+      }
+    });
 
   return response.status(200).json({
     home_listing_request,
@@ -453,20 +557,45 @@ export async function decline_request(
   home_listing_request.accepted = false;
   const updates = await home_listing_request.save();
 
-  const newNotification = await Notifications.create({
-    from_id: you.id,
-    to_id: home_listing_request.home_owner_id,
-    action: NOTIFICATION_TYPE.HOME_LISTING_REQUEST_DECLINED,
-    target_type: NOTIFICATION_TARGET_TYPE.HOME_LISTING,
-    target_id: home_listing_request.home_listing_id,
-  });
-  (<IRequest> request).io.emit(EVENT_TYPES.HOME_LISTING_REQUEST_DECLINED, {
-    for_id: home_listing_request.home_owner_id,
-    home_request_id: request_id,
-    newNotification,
-    home_listing_id: home_listing_request.home_listing_id,
-    home_listing_request,
-  });
+  /** Notify home owner that request was declined */
+  Users.findOne({ where: { id: home_listing_request.home_owner_id } })
+    .then(async (homeOwner: any) => {
+      try {
+        const subject = 'Tenant Search - Tenant Request Declined.';
+        const home_listing = await HomeListings.findOne({ where: { id: home_listing_request.home_listing_id } });
+        const home_listing_data: any = home_listing!.get({ plain: true });
+        const html = TenantRequest_Declined({
+          name: getUserFullName(you),
+          home_listing: home_listing_data
+        });
+        send_email('', homeOwner.dataValues.email, subject, html)
+          .then(email_result => {
+            console.log({ password_request: email_result });
+          });
+        const newNotification = await Notifications.create({
+          from_id: you.id,
+          to_id: home_listing_request.home_owner_id,
+          action: NOTIFICATION_TYPE.HOME_LISTING_REQUEST_DECLINED,
+          target_type: NOTIFICATION_TARGET_TYPE.HOME_LISTING,
+          target_id: home_listing_request.home_listing_id,
+        });
+        (<IRequest> request).io.emit(`${home_listing_request.home_owner_id}:${EVENT_TYPES.HOME_LISTING_REQUEST_DECLINED}`, {
+          event: EVENT_TYPES.HOME_LISTING_REQUEST_DECLINED,
+          for_id: home_listing_request.home_owner_id,
+          home_listing: home_listing_data,
+          links: convertHomeListingLinksToList(home_listing_data!.links),
+          home_request_id: request_id,
+          notification: {
+            ...newNotification.toJSON(),
+            from: you
+          },
+          home_listing_id: home_listing_request.home_listing_id,
+          home_listing_request,
+        });
+      } catch(e) {
+        console.log({ e, message: `could not sent email...` });
+      }
+    });
 
   return response.status(200).json({
     home_listing_request,

@@ -59,7 +59,8 @@ export async function delete_home_listing(
   const whereClause = { where: { id: home_listing_id, owner_id: you.id } };
   const delete_status = await HomeListings.destroy(whereClause);
 
-  (<IRequest> request).io.emit(EVENT_TYPES.HOME_LISTING_DELETED, {
+  (<IRequest> request).io.emit(`${EVENT_TYPES.HOME_LISTING_DELETED}`, {
+    event: EVENT_TYPES.HOME_LISTING_DELETED,
     for_id: null,
     home_listing_id,
   });

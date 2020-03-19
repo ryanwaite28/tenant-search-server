@@ -20,6 +20,7 @@ import {
 } from './chamber';
 import { MainController } from './controllers/_main';
 import { IRequest } from './interfaces/express-request.interface';
+import { installExpressApp } from './template-engine';
 
 
 
@@ -41,11 +42,13 @@ app.use(client_sessions({
   }
 }));
 
+installExpressApp(app);
+
 const server: http.Server = http.createServer(app);
 const io: socket_io.Server = socket_io(server);
 
 io.on('connection', (socket) => {
-  console.log('new socket:', socket);
+  console.log('new socket:', );
 });
 
 app.use((request: express.Request, response: express.Response, next: express.NextFunction) => {

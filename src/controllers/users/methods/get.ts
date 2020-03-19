@@ -1,5 +1,5 @@
 import {
-  uniqueValue
+  uniqueValue, NOTIFICATION_TARGET_TYPE, 
 } from '../../../chamber';
 import {
   Users,
@@ -7,12 +7,33 @@ import {
   UserLocationPreferences,
   HomeListings,
   HomeListingRequests,
-  Notifications
+  Notifications,
+  ResetPasswordRequests,
+  MyModelStatic,
+  IMyModel,
 } from '../../../models';
 import { Request, Response } from 'express';
 import { IRequest } from '../../../interfaces/express-request.interface';
 import { IResponse } from '../../../interfaces/express-response.interface';
 import { Op } from 'sequelize';
+
+/** Helper Methods */
+
+const applyNotificationDetails = async (n: IMyModel) => {
+  const notification: any = n.get({ plain: true });
+  switch (notification.target_type) {
+    case NOTIFICATION_TARGET_TYPE.HOME_LISTING: {
+      const home_listing = await HomeListings.findOne({
+        where: { id: notification.target_id }
+      });
+      notification.home_listing = home_listing;
+
+      return notification;
+    }
+  }
+};
+
+/** --- */
 
 export async function check_session(
   request: Request,
@@ -148,5 +169,13 @@ export async function user_notifications(
     limit: 5,
     order: [['id', 'DESC']]
   });
-  return response.status(200).json({ notifications });
+
+  notifications.forEach(async (notification) => {
+    await applyNotificationDetails(notification);
+  });
+
+  const newNotifications = await notifications.map((n) => applyNotificationDetails(n));
+  Promise.all(newNotifications).then(values => {
+    return response.status(200).json({ notifications: values });
+  });
 }

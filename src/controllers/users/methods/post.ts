@@ -8,7 +8,8 @@ import {
   capitalize,
   SEARCH_STATUS,
   HOME_TYPES,
-  allowed_images
+  allowed_images,
+  getUserFullName
 } from '../../../chamber';
 import * as bcrypt from 'bcrypt-nodejs';
 import { Request, Response } from 'express';
@@ -19,6 +20,8 @@ import {
 } from '../../../models';
 import { UploadedFile } from 'express-fileupload';
 import { store_image } from '../../../cloudinary-manager';
+import { SignedUp_EMAIL } from '../../../template-engine';
+import { send_email } from '../../../sendgrid-manager';
 
 export async function sign_up(
   request: Request,
@@ -120,15 +123,19 @@ export async function sign_up(
   delete user.password;
 
   /** Email Sign up and verify */
-  // const host: string | undefined = request.get('host');
-  // const uuid = user.uuid;
-  // const verify_link = (<string> host).endsWith('/')
-  //   ? (host + 'verify_user_email/' + uuid)
-  //   : (host + '/verify_user_email/' + uuid);
+  const host: string = request.get('origin')!;
+  const uuid = user.uuid;
+  const verify_link = (<string> host).endsWith('/')
+    ? (host + 'verify-account/' + uuid)
+    : (host + '/verify-account/' + uuid);
 
-  // const email_subject = 'Hot Spot - Signed Up!';
-  // const email_html = templateEngine.SignedUp_EMAIL(request.session.you);
-  // sendgrid_manager.send_email(null, user.email, email_subject, email_html);
+  const email_subject = 'Tenant Search - Signed Up!';
+  const email_html = SignedUp_EMAIL({ ...(<IRequest> request).session.you, name: getUserFullName(user), verify_link });
+  // don't "await" for email response.
+  send_email('', user.email, email_subject, email_html)
+    .then(email_results => {
+      console.log({ signed_up: email_results });
+    }); 
 
   const responseData = { online: true, user, message: 'Signed Up!', token: new_token, session_id: (<any> request).session.id };
   return response.status(200).json(responseData);

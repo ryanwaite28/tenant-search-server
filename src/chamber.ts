@@ -1,9 +1,9 @@
 // @ts-ignore
 import * as bcrypt from 'bcrypt';
 // @ts-ignore
-import uuidv1 from 'uuid/v1';
+import { v1 as uuidv1 } from 'uuid';
 // @ts-ignore
-import * as uuidv4 from 'uuid/v4';
+import { v4 as uuidv4 } from 'uuid';
 // @ts-ignore
 import * as crypto from 'crypto';
 // @ts-ignore
@@ -18,6 +18,7 @@ import { IRequest } from './interfaces/express-request.interface';
 
 export const APP_SECRET: string = 'f6evg7h8j9rrnhcw8e76@$#%RFG&*BF^&G*O(Pxjt67g8yu';
 export const specialCaracters = ['!', '@', '#', '$', '%', '&', '+', ')', ']', '}', ':', ';', '?'];
+export const codeCharacters = ['!', '@', '#', '$', '%', '&', '|', '*', ':', '-', '_', '+'];
 export const allowed_images = ['jpg', 'jpeg', 'png', 'JPG', 'JPEG', 'PNG'];
 export const algorithm = 'aes-256-ctr';
 export const token_separator = '|';
@@ -34,6 +35,9 @@ export enum USER_ACCOUNT_TYPES {
 
 export enum HOME_TYPES {
   ANY = 'ANY',
+  ROOM = 'ROOM',
+  BASEMENT_FLOOR = 'BASEMENT_FLOOR',
+  STUDIO = 'STUDIO',
   CONDO = 'CONDO',
   APARTMENT = 'APARTMENT',
   TOWN_HOME = 'TOWN_HOME',
@@ -76,6 +80,31 @@ export enum EVENT_TYPES {
 /* --- */
 
 export const numberRegex = /^[0-9]+/gi;
+
+export function convertHomeListingLinksToList(links: string): string[] {
+  const regex = /^(https?|chrome):\/\/[^\s$.?#].[^\s]*$/gm;
+  if (!links) {
+    return [];
+  }
+
+  const splitter = links.split(',,');
+  const list = splitter.filter((item) => regex.test(item));
+  return list;
+}
+
+export function getUserFullName(user: any): string {
+  if (user) {
+    const { first_name, middle_initial, last_name } = user;
+    const middle = middle_initial
+      ? ` ${middle_initial}. `
+      : ` `;
+
+    const displayName = `${first_name}${middle}${last_name}`;
+    return displayName;
+  } else {
+    throw new Error(`user arg had no value.`);
+  }
+}
 
 export function addDays(dateObj: Date, number_of_days: number) {
   const dat = new Date(dateObj.valueOf());
@@ -184,6 +213,17 @@ export function greatUniqueValue() {
     uuidv1() + '|' +
     uuidv4() + '|' +
     bcrypt.hashSync(APP_SECRET);
+}
+
+export function generateResetPasswordCode() {
+  const code = Date.now() +
+    '_' +
+    Math.random().toString(36).substr(2, 34) +
+    Math.random().toString(36).substr(2, 34) +
+    '_' +
+    uuidv1();
+  console.log({ code });
+  return code;
 }
 
 export function capitalize(str: string) {
