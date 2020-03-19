@@ -398,11 +398,11 @@ export const corsOptions: CorsOptions = {
   // https://expressjs.com/en/resources/middleware/cors.html
   origin(origin: string | undefined, callback: any) {
     const originIsAllowed = whitelist_domains.includes((origin as string));
-    // console.log({
-    //   origin,
-    //   callback,
-    //   originIsAllowed,
-    // });
+    console.log({
+      origin,
+      callback,
+      originIsAllowed,
+    });
 
     if (!origin) {
       callback(new Error(`Origin "${origin}" Not allowed by CORS`));
